@@ -1,0 +1,12 @@
+name: BlockCounter
+version: ${project.version}
+main: net.nodium.mcmods.blockcounter.BlockCounter
+api-version: 1.15
+authors: [ polymetric ]
+description: Various utilities for the analysis of Minecraft blocks.
+website: nodium.net/mcmods/blockcounter
+commands:
+  blockcounter:
+    description: b
+    usage: b
+    permission: blockcounter.blockcounter
