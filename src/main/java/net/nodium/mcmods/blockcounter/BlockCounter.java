@@ -6,13 +6,11 @@ import org.bukkit.block.Block;
 import org.bukkit.command.Command;
 import org.bukkit.command.CommandSender;
 import org.bukkit.entity.Player;
-import org.bukkit.plugin.Plugin;
 import org.bukkit.plugin.java.JavaPlugin;
 
-import java.io.File;
-import java.io.FileWriter;
-import java.io.IOException;
+import java.io.*;
 import java.util.ArrayList;
+import java.util.Scanner;
 
 public final class BlockCounter extends JavaPlugin {
 
@@ -32,54 +30,81 @@ public final class BlockCounter extends JavaPlugin {
             sender.sendMessage("console not supported yet");
         }
 
-        ArrayList<Position> flowers = new ArrayList<Position>();
-        ArrayList<Position> potentialFlowers = new ArrayList<Position>();
+        ArrayList<Position> leaves_orig = new ArrayList<Position>();
+        ArrayList<Position> leaves_orig_rejects = new ArrayList<Position>();
+        ArrayList<Position> leaves_out = new ArrayList<Position>();
+
+        try {
+            File file = new File(getDataFolder(), "leaves_orig.txt");
+            Scanner scan = new Scanner(file);
+            while (scan.hasNextLine()) {
+                Position p = Position.loadPositionFromString(scan.nextLine());
+                leaves_orig.add(p);
+                System.out.println(p);
+            }
+        } catch (IOException e) {
+            sender.sendMessage(ChatColor.RED + "file error");
+            e.printStackTrace();
+            return false;
+        }
+
+        leaves_orig_rejects.addAll(leaves_orig);
 
 //        Selection selection = worldEdit.getSelection((Player) sender);
 
-        Position pos1 = new Position(87, 85, -114);
-        Position pos2 = new Position(110, 64, -89);
+        Position pos1 = new Position(6, 66, -4);
+        Position pos2 = new Position(-10, 83, 8);
 
-        for (int x = pos1.x; x <= pos2.x; x++) {
-            for (int y = pos1.y; y >= pos2.y; y--) {
-                for (int z = pos1.z; z <= pos2.z; z++) {
-                    Block block = ((Player) sender).getLocation().getWorld().getBlockAt(x, y, z);
-                    if (block.getType() == Material.DANDELION) {
-                        flowers.add(new Position(x, y, z));
-//                        sender.sendMessage(String.format("found block %s at %s", block.getType().toString(), block.getX(), block.getY(), block.getZ()));
-                    }
-                }
+        for (int i = 0; i < args.length; i += 2) {
+            if (args[i].equalsIgnoreCase("time")) {
+                int x = Integer.parseInt(args[i + 1]);
             }
         }
 
-        for (Position p : flowers) {
-            for (int x = p.x - 7; x <= p.x + 7; x++) {
-                for (int y = p.y - 3; y <= p.y + 3; y++) {
-                    for (int z = p.z - 7; z <= p.z + 7; z++) {
-                        Block blockBelow = ((Player) sender).getLocation().getWorld().getBlockAt(x, y - 1, z);
-                        Block blockAbove = ((Player) sender).getLocation().getWorld().getBlockAt(x, y, z);
-                        if (blockBelow.getType() == Material.GRASS_BLOCK && blockAbove.getType() == Material.AIR) {
-                            potentialFlowers.add(new Position(x, y, z));
-                            sender.sendMessage(String.format("found block %s at %s %s %s", blockAbove.getType().toString(), blockAbove.getX(), blockAbove.getY(), blockAbove.getZ()));
+        for (int x = Math.min(pos1.x, pos2.x); x <= Math.max(pos1.x, pos2.x); x++) {
+            for (int y = Math.min(pos1.y, pos2.y); y <= Math.max(pos1.y, pos2.y); y++) {
+                for (int z = Math.min(pos1.z, pos2.z); z <= Math.max(pos1.z, pos2.z); z++) {
+                    Block blockBelow = ((Player) sender).getLocation().getWorld().getBlockAt(x, y, z);
+                    Block blockAbove = ((Player) sender).getLocation().getWorld().getBlockAt(x, y + 1, z);
+                    if (blockBelow.getType() == Material.PURPLE_WOOL && blockAbove.getType() == Material.AIR) {
+                        for (Position p : leaves_orig) {
+                            if (p.x == x && p.y + Integer.parseInt(args[0]) == y && p.z == z) {
+                                leaves_out.add(new Position(x, y, z));
+                                leaves_orig_rejects.remove(p);
+                            }
                         }
                     }
                 }
             }
         }
 
-        try {
-            File file = new File(getDataFolder(), "potentialFlowers.txt");
-            file.createNewFile();
-            FileWriter writer = new FileWriter(file);
+        sender.sendMessage(args[0]);
+        sender.sendMessage(String.format("%d leaves did not match the list", leaves_orig_rejects.size()));
 
-            for (Position p : potentialFlowers) {
+        try {
+            File file = new File(getDataFolder(), "leaves_out.txt");
+            File file2 = new File(getDataFolder(), "leaves_orig_rejects.txt");
+            file.createNewFile();
+            file2.createNewFile();
+            FileWriter writer = new FileWriter(file);
+            FileWriter writer2 = new FileWriter(file2);
+
+            for (Position p : leaves_out) {
                 writer.append(String.format("%s %s %s\n", p.x, p.y, p.z));
+            }
+//            for (Position p : leaves_orig_rejects) {
+//                writer2.append(String.format("%s %s %s\n", p.x, p.y, p.z));
+//            }
+            for (Position p : leaves_orig) {
+                writer2.append(String.format("{ %s, %s, %s },\n", p.x, p.y, p.z));
             }
 
             writer.close();
+            writer2.close();
         } catch (IOException e) {
             sender.sendMessage(ChatColor.RED + "file error");
             e.printStackTrace();
+            return false;
         }
 
         sender.sendMessage("done");
