@@ -1,22 +1,33 @@
 package net.nodium.mcmods.blockcounter;
 
+import com.sk89q.worldedit.WorldEdit;
+import com.sk89q.worldedit.bukkit.BukkitPlayer;
+import com.sk89q.worldedit.bukkit.WorldEditPlugin;
+import com.sk89q.worldedit.internal.annotation.Selection;
+import com.sk89q.worldedit.math.BlockVector3;
+import com.sk89q.worldedit.regions.Region;
+import org.bukkit.Bukkit;
 import org.bukkit.ChatColor;
 import org.bukkit.Material;
 import org.bukkit.block.Block;
 import org.bukkit.command.Command;
 import org.bukkit.command.CommandSender;
 import org.bukkit.entity.Player;
+import org.bukkit.plugin.Plugin;
 import org.bukkit.plugin.java.JavaPlugin;
 
 import java.io.*;
 import java.util.ArrayList;
-import java.util.Scanner;
 
 public final class BlockCounter extends JavaPlugin {
+    public WorldEditPlugin worldEdit;
 
     @Override
     public void onEnable() {
         getDataFolder().mkdir();
+
+        // load worldedit
+        worldEdit = (WorldEditPlugin) Bukkit.getServer().getPluginManager().getPlugin("WorldEdit");
     }
 
     @Override
@@ -26,81 +37,107 @@ public final class BlockCounter extends JavaPlugin {
 
     @Override
     public boolean onCommand(CommandSender sender, Command cmd, String label, String[] args) {
+        // TODO proper command handling lol
         if (!(sender instanceof Player)) {
             sender.sendMessage("console not supported yet");
         }
 
-        ArrayList<Position> leaves_orig = new ArrayList<Position>();
-        ArrayList<Position> leaves_orig_rejects = new ArrayList<Position>();
-        ArrayList<Position> leaves_out = new ArrayList<Position>();
+        Player player = (Player) sender;
+        BukkitPlayer wePlayer = worldEdit.wrapPlayer(player);
+        Region region = null;
 
         try {
-            File file = new File(getDataFolder(), "leaves_orig.txt");
-            Scanner scan = new Scanner(file);
-            while (scan.hasNextLine()) {
-                Position p = Position.loadPositionFromString(scan.nextLine());
-                leaves_orig.add(p);
-                System.out.println(p);
-            }
-        } catch (IOException e) {
-            sender.sendMessage(ChatColor.RED + "file error");
+            region = worldEdit.getSession(player).getSelection(wePlayer.getWorld());
+        } catch (Exception e) {
+            // TODO error handling
             e.printStackTrace();
-            return false;
         }
 
-        leaves_orig_rejects.addAll(leaves_orig);
+        BlockVector3 pos1 = region.getMinimumPoint();
+        BlockVector3 pos2 = region.getMaximumPoint();
 
-//        Selection selection = worldEdit.getSelection((Player) sender);
-
-        Position pos1 = new Position(6, 66, -4);
-        Position pos2 = new Position(-10, 83, 8);
+//        Position pos1 = new Position(-89, 90, -329);
+//        Position pos2 = new Position(-104, 59, -344);
 
         for (int i = 0; i < args.length; i += 2) {
-            if (args[i].equalsIgnoreCase("time")) {
-                int x = Integer.parseInt(args[i + 1]);
-            }
+
         }
 
-        for (int x = Math.min(pos1.x, pos2.x); x <= Math.max(pos1.x, pos2.x); x++) {
-            for (int y = Math.min(pos1.y, pos2.y); y <= Math.max(pos1.y, pos2.y); y++) {
-                for (int z = Math.min(pos1.z, pos2.z); z <= Math.max(pos1.z, pos2.z); z++) {
-                    Block blockBelow = ((Player) sender).getLocation().getWorld().getBlockAt(x, y, z);
-                    Block blockAbove = ((Player) sender).getLocation().getWorld().getBlockAt(x, y + 1, z);
-                    if (blockBelow.getType() == Material.PURPLE_WOOL && blockAbove.getType() == Material.AIR) {
-                        for (Position p : leaves_orig) {
-                            if (p.x == x && p.y + Integer.parseInt(args[0]) == y && p.z == z) {
-                                leaves_out.add(new Position(x, y, z));
-                                leaves_orig_rejects.remove(p);
-                            }
+        sender.sendMessage("getting tree leaves");
+
+        StringBuilder leaves_out = new StringBuilder();
+
+//        for (int x = Math.min(pos1.x, pos2.x); x <= Math.max(pos1.x, pos2.x); x++) {
+//            for (int y = Math.min(pos1.y, pos2.y); y <= Math.max(pos1.y, pos2.y); y++) {
+//                for (int z = Math.min(pos1.z, pos2.z); z <= Math.max(pos1.z, pos2.z); z++) {
+//                    Block block = ((Player) sender).getLocation().getWorld().getBlockAt(x, y, z);
+//                    if (block.getType() == Material.GRASS) {
+//                        leaves_out.add(new Position(x, y, z));
+//                    }
+//                }
+//            }
+//        }
+
+        Position treeBase = new Position(pos1.getBlockX(), pos1.getBlockY(), pos1.getBlockZ());
+        sender.sendMessage(String.format("tree base = %3d %3d %3d", treeBase.x, treeBase.y, treeBase.z));
+
+        int trunkHeight = -1;
+
+        for (int y = treeBase.y; y < 256; y++) {
+            Block block = player.getLocation().getWorld().getBlockAt(treeBase.x, y, treeBase.z);
+            if (!isLog(block.getType())) {
+                trunkHeight = y - treeBase.y;
+                break;
+            }
+        }
+        sender.sendMessage(String.format("trunk height = %d\n", trunkHeight));
+
+        // this is the tree generation function from b1.8, the for loops are copied mostly
+        // verbatim except we subtract one from the y max because we don't need the
+        // top four corner leaves, they're always air
+        for (int y = treeBase.y + trunkHeight - 3; y <= treeBase.y + trunkHeight - 1; y++) {
+            int distFromTop = y - (treeBase.y + trunkHeight);
+            int radius = 1 - distFromTop / 2;
+            for (int x = treeBase.x - radius; x <= treeBase.x + radius; x++) {
+                int relX = x - treeBase.x;
+                for (int z = treeBase.z - radius; z <= treeBase.z + radius; z++) {
+                    int relZ = z - treeBase.z;
+                    if (Math.abs(relX) == radius && Math.abs(relZ) == radius) {
+                        Position leafPos = new Position(x, y, z);
+
+                        Block block = player.getLocation().getWorld().getBlockAt(leafPos.x, leafPos.y, leafPos.z);
+//                        block.setType(Material.STONE);
+                        if (isLeaf(block.getType())) {
+                            leaves_out.append("l ");
+                        } else if (block.getType().isAir()) {
+                            leaves_out.append("n ");
+                        } else {
+                            leaves_out.append("u ");
                         }
+
+//                        sender.sendMessage(String.format("%3d %3d %3d", x, y, z));
+//                    sender.sendMessage(String.format("y = %d", y));
+//                    sender.sendMessage(String.format("radius = %d", radius));
+//                    sender.sendMessage(String.format("dist from top = %d", distFromTop));
                     }
                 }
             }
         }
 
-        sender.sendMessage(args[0]);
-        sender.sendMessage(String.format("%d leaves did not match the list", leaves_orig_rejects.size()));
-
         try {
-            File file = new File(getDataFolder(), "leaves_out.txt");
-            File file2 = new File(getDataFolder(), "leaves_orig_rejects.txt");
-            file.createNewFile();
-            file2.createNewFile();
+            File file = new File(getDataFolder(), "treeleaves.txt");
+            if (!file.exists()) {
+                file.createNewFile();
+            }
             FileWriter writer = new FileWriter(file);
-            FileWriter writer2 = new FileWriter(file2);
 
-            for (Position p : leaves_out) {
-                writer.append(String.format("%s %s %s\n", p.x, p.y, p.z));
-            }
-//            for (Position p : leaves_orig_rejects) {
-//                writer2.append(String.format("%s %s %s\n", p.x, p.y, p.z));
+//            for (Position p : leaves_out) {
+//                writer.append(String.format("%s %s %s\n", p.x, p.y, p.z));
 //            }
-            for (Position p : leaves_orig) {
-                writer2.append(String.format("{ %s, %s, %s },\n", p.x, p.y, p.z));
-            }
+
+            writer.append(leaves_out.toString());
 
             writer.close();
-            writer2.close();
         } catch (IOException e) {
             sender.sendMessage(ChatColor.RED + "file error");
             e.printStackTrace();
@@ -110,5 +147,13 @@ public final class BlockCounter extends JavaPlugin {
         sender.sendMessage("done");
 
         return true;
+    }
+
+    public boolean isLeaf(Material m) {
+        return m.toString().toUpperCase().contains("LEAVES");
+    }
+
+    public boolean isLog(Material m) {
+        return m.toString().toUpperCase().contains("LOG");
     }
 }
