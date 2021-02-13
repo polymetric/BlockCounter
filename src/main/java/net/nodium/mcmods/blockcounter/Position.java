@@ -24,4 +24,8 @@ public class Position {
     public String toString() {
         return String.format("x%d y%d z%d", x, y, z);
     }
+
+    public Position copy() {
+        return new Position(x, y, z);
+    }
 }

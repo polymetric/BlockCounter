@@ -53,89 +53,41 @@ public final class BlockCounter extends JavaPlugin {
             e.printStackTrace();
         }
 
-        BlockVector3 pos1 = region.getMinimumPoint();
-        BlockVector3 pos2 = region.getMaximumPoint();
+        BlockVector3 pos1_we = region.getMinimumPoint();
+        BlockVector3 pos2_we = region.getMaximumPoint();
 
-//        Position pos1 = new Position(-89, 90, -329);
-//        Position pos2 = new Position(-104, 59, -344);
+        Position pos1 = new Position(pos1_we.getBlockX(), pos1_we.getBlockY(), pos1_we.getBlockZ());
+        Position pos2 = new Position(pos2_we.getBlockX(), pos2_we.getBlockY(), pos2_we.getBlockZ());
 
-        for (int i = 0; i < args.length; i += 2) {
+        sender.sendMessage("dumping blocks");
 
-        }
+        StringBuilder blocks_out = new StringBuilder();
 
-        sender.sendMessage("getting tree leaves");
+        for (int x = Math.min(pos1.x, pos2.x); x <= Math.max(pos1.x, pos2.x); x++) {
+                for (int z = Math.min(pos1.z, pos2.z); z <= Math.max(pos1.z, pos2.z); z++) {
+                    for (int y = 255; y > 0; y--) {
+                    Block block = ((Player) sender).getLocation().getWorld().getBlockAt(x, y, z);
 
-        StringBuilder leaves_out = new StringBuilder();
-
-//        for (int x = Math.min(pos1.x, pos2.x); x <= Math.max(pos1.x, pos2.x); x++) {
-//            for (int y = Math.min(pos1.y, pos2.y); y <= Math.max(pos1.y, pos2.y); y++) {
-//                for (int z = Math.min(pos1.z, pos2.z); z <= Math.max(pos1.z, pos2.z); z++) {
-//                    Block block = ((Player) sender).getLocation().getWorld().getBlockAt(x, y, z);
-//                    if (block.getType() == Material.GRASS) {
-//                        leaves_out.add(new Position(x, y, z));
-//                    }
-//                }
-//            }
-//        }
-
-        Position treeBase = new Position(pos1.getBlockX(), pos1.getBlockY(), pos1.getBlockZ());
-        sender.sendMessage(String.format("tree base = %3d %3d %3d", treeBase.x, treeBase.y, treeBase.z));
-
-        int trunkHeight = -1;
-
-        for (int y = treeBase.y; y < 256; y++) {
-            Block block = player.getLocation().getWorld().getBlockAt(treeBase.x, y, treeBase.z);
-            if (!isLog(block.getType())) {
-                trunkHeight = y - treeBase.y;
-                break;
-            }
-        }
-        sender.sendMessage(String.format("trunk height = %d\n", trunkHeight));
-
-        // this is the tree generation function from b1.8, the for loops are copied mostly
-        // verbatim except we subtract one from the y max because we don't need the
-        // top four corner leaves, they're always air
-        for (int y = treeBase.y + trunkHeight - 3; y <= treeBase.y + trunkHeight - 1; y++) {
-            int distFromTop = y - (treeBase.y + trunkHeight);
-            int radius = 1 - distFromTop / 2;
-            for (int x = treeBase.x - radius; x <= treeBase.x + radius; x++) {
-                int relX = x - treeBase.x;
-                for (int z = treeBase.z - radius; z <= treeBase.z + radius; z++) {
-                    int relZ = z - treeBase.z;
-                    if (Math.abs(relX) == radius && Math.abs(relZ) == radius) {
-                        Position leafPos = new Position(x, y, z);
-
-                        Block block = player.getLocation().getWorld().getBlockAt(leafPos.x, leafPos.y, leafPos.z);
-//                        block.setType(Material.STONE);
-                        if (isLeaf(block.getType())) {
-                            leaves_out.append("l ");
-                        } else if (block.getType().isAir()) {
-                            leaves_out.append("n ");
-                        } else {
-                            leaves_out.append("u ");
-                        }
-
-//                        sender.sendMessage(String.format("%3d %3d %3d", x, y, z));
-//                    sender.sendMessage(String.format("y = %d", y));
-//                    sender.sendMessage(String.format("radius = %d", radius));
-//                    sender.sendMessage(String.format("dist from top = %d", distFromTop));
+                    if (!block.getType().isAir()) {
+                        blocks_out.append(String.format("%6d %6d %s", x, z, block.getType().toString()));
+                        break;
                     }
                 }
             }
         }
 
         try {
-            File file = new File(getDataFolder(), "treeleaves.txt");
+            File file = new File(getDataFolder(), "blocks.txt");
             if (!file.exists()) {
                 file.createNewFile();
             }
             FileWriter writer = new FileWriter(file);
 
-//            for (Position p : leaves_out) {
+//            for (Position p : blocks_out) {
 //                writer.append(String.format("%s %s %s\n", p.x, p.y, p.z));
 //            }
 
-            writer.append(leaves_out.toString());
+            writer.append(blocks_out.toString());
 
             writer.close();
         } catch (IOException e) {
