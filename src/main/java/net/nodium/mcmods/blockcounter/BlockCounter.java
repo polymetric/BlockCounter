@@ -108,11 +108,11 @@ public final class BlockCounter extends JavaPlugin {
                         Block block = player.getLocation().getWorld().getBlockAt(leafPos.x, leafPos.y, leafPos.z);
 //                        block.setType(Material.STONE);
                         if (isLeaf(block.getType())) {
-                            leaves_out.append("l ");
+                            leaves_out.append("l");
                         } else if (block.getType().isAir()) {
-                            leaves_out.append("n ");
+                            leaves_out.append("n");
                         } else {
-                            leaves_out.append("u ");
+                            leaves_out.append("u");
                         }
 
 //                        sender.sendMessage(String.format("%3d %3d %3d", x, y, z));
@@ -123,6 +123,8 @@ public final class BlockCounter extends JavaPlugin {
                 }
             }
         }
+
+        sender.sendMessage(leaves_out.toString());
 
         try {
             File file = new File(getDataFolder(), "treeleaves.txt");
